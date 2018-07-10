@@ -28,7 +28,7 @@ $key = 'secret';
 
 $app->get('/api/auth/v1/auth', function (Request $request, Response $response, array $args) use ($key){
 
-    $jwt = explode('Bearer ',(string)$request->getHeader('Authorization'))[1];
+    $jwt = explode('Bearer ',$request->getHeader('Authorization')[0])[1];
 
     $ret = checkAuth($request, $response, $key);
 
@@ -85,7 +85,7 @@ $app->post('/api/auth/v1/register', function (Request $request, Response $respon
         return $response->withJson([
             'status' => 'ok'
         ]);
-    }else $response->withStatus(400);
+    }else return $response->withStatus(400);
 
 });
 
@@ -105,19 +105,23 @@ function checkAuth(Request $request, Response $response, $key)
 
         if(!$request->getHeader('Authorization')) throw new Exception();
 
-        $jwt = explode('Bearer ',(string)$request->getHeader('Authorization'))[1];
+        $jwt = explode('Bearer ',$request->getHeader('Authorization')[0])[1];
 
-        $data = (array)JWT::decode($jwt, $key);
+        $data = (array)JWT::decode($jwt, $key)[1];
         if((int)$data['exp'] < time())
             return $response
                 ->withJson([
                     'status' => 'expired',
-                    'token' => '',
+                    'token' => $jwt,
+                    'data' => $data,
                 ])->withStatus(401);
         else
             return true;
     }catch (Exception $e)
     {
-        return $response->withStatus(401);
+        $jwt = explode('Bearer ',$request->getHeader('Authorization')[0])[1];
+        return $response
+            ->withJson(['status' => $e->getMessage(), 'token' => $jwt])
+            ->withStatus(401);
     }
 }
